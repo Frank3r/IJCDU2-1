@@ -20,16 +20,17 @@ struct Circular_buffer{
 /* cb_create
  * Creates buffer of size n
  */
-struct Circular_buffer cb_create(long n){
-    struct Circular_buffer buffer;
-    buffer.buf = malloc(sizeof(char)*n);
-    if(buffer.buf == NULL){
+struct Circular_buffer *cb_create(long n){
+    struct Circular_buffer *buffer;
+    buffer=malloc(sizeof(struct Circular_buffer));
+    buffer->buf = malloc(sizeof(char)*n);
+    if(buffer->buf == NULL){
         fprintf(stderr,"Failed to allocate buffer space");
         exit(1);
     }
-    buffer.start=0;
-    buffer.end=0;
-    buffer.limit=n;
+    buffer->start=0;
+    buffer->end=0;
+    buffer->limit=n;
     return buffer;
 }
 
@@ -42,19 +43,19 @@ struct Circular_buffer cb_create(long n){
  * if buffer is full, the contents are overwritten
  */
 
-void cb_put(struct Circular_buffer cb, const char* line){
+void cb_put(struct Circular_buffer *cb, const char *line){
     for(long i=0; line[i] != '\n' && line[i] != '\0';i++){
-        cb.buf[cb.end++]=line[i];
-        cb.end%=cb.limit;
-        if(cb.end == cb.start){
+        cb->buf[cb->end++]=line[i];
+        cb->end%=cb->limit;
+        if(cb->end == cb->start){
             fprintf(stderr,"Circular buffer limit overflow");
             break;
         }
     }
-    if(cb.end == cb.start){ //add end character
-        cb.buf[cb.end-1]='\0';
+    if(cb->end == cb->start){ //add end character
+        cb->buf[cb->end-1]='\0';
     }else{
-        cb.buf[cb.end++]='\0';
+        cb->buf[cb->end++]='\0';
     }
 }
 
@@ -64,19 +65,35 @@ void cb_put(struct Circular_buffer cb, const char* line){
  * Returns pointer to buffer
  * Note:
  * To avoid memory allocation,
- * the contents are rotated until start pointer is equal 0
+ * the contents are rotated until the line ends exactly at its limit.
+ * This will put the start pointer at exactly zero after line is read.
  */
 
-char* cb_get(struct Circular_buffer cb){ // return full content of circular Buffer
-    char temp_char;
-    while(cb.start!=0){ // rotate buffer to the left
-        temp_char=cb.buf[0];
-        for(long i = 0 ; i < cb.limit-1;i++){
-            cb.buf[i]=cb.buf[i+1];
+
+long cb_findEndLine(struct Circular_buffer *cb){
+    long i;
+    for(i=cb->start;cb->buf[i%cb->limit]!='\0';i++); // COUNTER
+    i++; // count in the endline character
+    return (i<cb->start)?i%cb->limit:i;
+}
+
+char* cb_get(struct Circular_buffer *cb){
+    long endline_point = cb_findEndLine(cb);
+    if(endline_point < cb->start){
+        //ROTATION TO THE RIGHT
+        char temp;
+        while(cb->start!=0){
+            temp=cb->buf[cb->limit-1];
+            for(int i=cb->limit-1; i > 0;i--){
+                cb->buf[i]=cb->buf[i-1];
+            }
+            cb->buf[0] = temp;
+            cb->start=(cb->start+1)%cb->limit;
+            cb->end++;
+            endline_point++;
         }
-        cb.buf[cb.limit-1]=temp_char;
     }
-    return cb.buf;
+    return &cb->buf[cb->start];
 }
 
 /*
@@ -84,8 +101,9 @@ char* cb_get(struct Circular_buffer cb){ // return full content of circular Buff
  * Frees the buffers memory.
  */
 
-void cb_free(struct Circular_buffer cb){
-    free(cb.buf);
+void cb_free(struct Circular_buffer *cb){
+    free(cb->buf);
+    free(cb);
 }
 
 
