@@ -8,13 +8,8 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <stdio.h>
+#include "circular_buffer.h"
 
-struct Circular_buffer{
-    char* buf;
-    long start;
-    long end;
-    long limit;
-};
 
 
 /* cb_create
@@ -49,26 +44,19 @@ void cb_put(struct Circular_buffer *cb, const char *line){
         cb->end%=cb->limit;
         if(cb->end == cb->start){
             fprintf(stderr,"Circular buffer limit overflow");
+            cb->end--;
             break;
         }
     }
-    if(cb->end == cb->start){ //add end character
-        cb->buf[cb->end-1]='\0';
-    }else{
-        cb->buf[cb->end++]='\0';
-    }
+    cb->buf[cb->end]='\0';
 }
 
-
 /*
- * cb_get
- * Returns pointer to buffer
- * Note:
- * To avoid memory allocation,
- * the contents are rotated until the line ends exactly at its limit.
- * This will put the start pointer at exactly zero after line is read.
+ * cb_findEndLine
+ * helper function to cb_get
+ * get first occurence of '/0' after cb_start
+ *
  */
-
 
 long cb_findEndLine(struct Circular_buffer *cb){
     long i;
@@ -77,7 +65,17 @@ long cb_findEndLine(struct Circular_buffer *cb){
     return (i<cb->start)?i%cb->limit:i;
 }
 
+
+/*
+ * cb_get
+ * Returns pointer to buffer, NULL if empty
+ * Note:
+ * To avoid memory allocation,
+ * the contents are rotated until the line ends exactly at its limit.
+ * This will put the start pointer at exactly zero after line is read.
+ */
 char* cb_get(struct Circular_buffer *cb){
+    if(cb->start==cb->end)return NULL;
     long endline_point = cb_findEndLine(cb);
     if(endline_point < cb->start){
         //ROTATION TO THE RIGHT
@@ -93,7 +91,9 @@ char* cb_get(struct Circular_buffer *cb){
             endline_point++;
         }
     }
-    return &cb->buf[cb->start];
+    long oldstart = cb->start;
+    cb->start= endline_point;
+    return &cb->buf[oldstart];
 }
 
 /*
