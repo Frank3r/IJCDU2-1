@@ -6,7 +6,6 @@
 // will be used for loading a line and then printing it out
 
 #include <stdlib.h>
-#include <limits.h>
 #include <stdio.h>
 #include "circular_buffer.h"
 
@@ -26,6 +25,7 @@ struct Circular_buffer *cb_create(long n){
     buffer->start=0;
     buffer->end=0;
     buffer->limit=n;
+    buffer->lines=0;
     return buffer;
 }
 
@@ -35,20 +35,26 @@ struct Circular_buffer *cb_create(long n){
  * throws overflow error when line is longer
  * than buffer size limit, but keeps shortened line
  *
- * if buffer is full, the contents are overwritten
  */
 
 void cb_put(struct Circular_buffer *cb, const char *line){
+    char overflow=0;
     for(long i=0; line[i] != '\n' && line[i] != '\0';i++){
         cb->buf[cb->end++]=line[i];
         cb->end%=cb->limit;
         if(cb->end == cb->start){
-            fprintf(stderr,"Circular buffer limit overflow");
-            cb->end--;
-            break;
+            overflow=1;
+            if(cb->buf[cb->start]=='\0'){
+                cb->lines--;
+            }
+            cb->start++; // start overwriting itself
         }
     }
+    if(overflow){
+        fprintf(stderr,"Circular buffer limit overflow");
+    }
     cb->buf[cb->end]='\0';
+    cb->lines++;
 }
 
 /*
@@ -93,6 +99,7 @@ char* cb_get(struct Circular_buffer *cb){
     }
     long oldstart = cb->start;
     cb->start= endline_point;
+    cb->lines--;
     return &cb->buf[oldstart];
 }
 

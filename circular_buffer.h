@@ -10,6 +10,7 @@ struct Circular_buffer{
     long start;
     long end;
     long limit;
+    long lines;
 };
 
 struct Circular_buffer *cb_create(long n);
