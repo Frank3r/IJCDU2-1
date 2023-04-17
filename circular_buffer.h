@@ -11,6 +11,7 @@ struct Circular_buffer{
     long end;
     long limit;
     long lines;
+    char overflow;
 };
 
 struct Circular_buffer *cb_create(long n);
